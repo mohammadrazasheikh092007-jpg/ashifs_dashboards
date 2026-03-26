@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ashif Sheikh Dashboard</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1e3a5f, #3b82f6);
+      color: #333;
+    }
+
+    .lockScreen {
+      display: flex;
+      height: 100vh;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .box {
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(10px);
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      color: white;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: none;
+    }
+
+    button {
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+    }
+
+    .dashboard {
+      display: none;
+    }
+
+    .sidebar {
+      width: 220px;
+      height: 100vh;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      position: fixed;
+      padding: 20px;
+    }
+
+    .sidebar p {
+      cursor: pointer;
+      padding: 10px;
+    }
+
+    .sidebar p:hover {
+      background: #3b82f6;
+    }
+
+    .content {
+      margin-left: 240px;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    img {
+      width: 100px;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="lockScreen" id="lockScreen">
+  <div class="box">
+    <h2>Enter Password</h2>
+    <input type="password" id="pass">
+    <button onclick="checkPassword()">Enter</button>
+  </div>
+</div>
+
+<div class="dashboard" id="dashboard">
+  <div class="sidebar">
+    <h2>Ashif Panel</h2>
+    <p onclick="showSection('home')">Dashboard</p>
+    <p onclick="showSection('profile')">Profile</p>
+    <p onclick="showSection('docs')">Documents</p>
+    <p onclick="showSection('work')">Work</p>
+  </div>
+
+  <div class="content">
+
+    <div id="home" class="card">
+      <h2>Welcome Ashif 👋</h2>
+    </div>
+
+    <div id="profile" class="card" style="display:none">
+      <h2>Profile</h2>
+      <img id="profileImg">
+      <input type="file" id="photo">
+      <input id="name" placeholder="Name">
+      <input id="skills" placeholder="Skills">
+      <button onclick="saveProfile()">Save</button>
+    </div>
+
+    <div id="docs" class="card" style="display:none">
+      <h2>Documents</h2>
+      <input type="file" id="file">
+      <button onclick="uploadDoc()">Upload</button>
+      <div id="docList"></div>
+    </div>
+
+    <div id="work" class="card" style="display:none">
+      <h2>Work</h2>
+      <input id="company" placeholder="Company">
+      <input id="role" placeholder="Role">
+      <button onclick="addWork()">Add</button>
+      <div id="workList"></div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, listAll } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBOD7U-9XzMxYfGi_FnEtlRB9NyCYIK1j0",
+  authDomain: "ashifs-project.firebaseapp.com",
+  projectId: "ashifs-project",
+  storageBucket: "ashifs-project.firebasestorage.app",
+  messagingSenderId: "466287590812",
+  appId: "1:466287590812:web:022b7552e9e772f71bdc59"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+window.checkPassword = function () {
+  if (document.getElementById("pass").value === "ashif@123") {
+    lockScreen.style.display = "none";
+    dashboard.style.display = "block";
+    loadAll();
+  } else alert("Wrong password");
+};
+
+window.showSection = function(id) {
+  document.querySelectorAll(".card").forEach(c=>c.style.display="none");
+  document.getElementById(id).style.display="block";
+};
+
+window.uploadDoc = async function() {
+  const file = document.getElementById("file").files[0];
+  const storageRef = ref(storage, "docs/" + file.name);
+
+  await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(storageRef);
+
+  await addDoc(collection(db, "documents"), {
+    name: file.name,
+    url: url
+  });
+
+  loadDocs();
+};
+
+window.loadDocs = async function() {
+  const list = document.getElementById("docList");
+  list.innerHTML = "";
+
+  const querySnapshot = await getDocs(collection(db, "documents"));
+  querySnapshot.forEach(docSnap => {
+    const d = docSnap.data();
+    list.innerHTML += `<p><a href="${d.url}" target="_blank">${d.name}</a></p>`;
+  });
+};
+
+window.saveProfile = async function() {
+  const file = document.getElementById("photo").files[0];
+  let photoURL = "";
+
+  if(file){
+    const refStorage = ref(storage, "profile/photo");
+    await uploadBytes(refStorage, file);
+    photoURL = await getDownloadURL(refStorage);
+  }
+
+  await setDoc(doc(db,"profile","ashif"), {
+    name: name.value,
+    skills: skills.value,
+    photo: photoURL
+  });
+};
+
+window.addWork = async function() {
+  await addDoc(collection(db,"work"), {
+    company: company.value,
+    role: role.value
+  });
+  loadWork();
+};
+
+window.loadWork = async function() {
+  const list = document.getElementById("workList");
+  list.innerHTML="";
+  const snap = await getDocs(collection(db,"work"));
+  snap.forEach(d=>{
+    list.innerHTML += `<p>${d.data().company} - ${d.data().role}</p>`;
+  });
+};
+
+async function loadAll(){
+  loadDocs();
+  loadWork();
+
+  const docSnap = await getDoc(doc(db,"profile","ashif"));
+  if(docSnap.exists()){
+    const d = docSnap.data();
+    name.value = d.name;
+    skills.value = d.skills;
+    profileImg.src = d.photo;
+  }
+}
+</script>
+
+</body>
+</html>
